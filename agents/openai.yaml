@@ -1,0 +1,6 @@
+interface:
+  display_name: "AI工程机制"
+  short_description: "为个人与OPC项目连接需求、实施、真实验证、交付检查和任务恢复"
+  default_prompt: "使用 $ai-project-harness，在当前授权范围内接入或推进项目，并保存可核对的交付证据。"
+policy:
+  allow_implicit_invocation: false

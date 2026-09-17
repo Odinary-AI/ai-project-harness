@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "task_id": null,
+  "run_id": null,
+  "check_id": null,
+  "started_at": null,
+  "finished_at": null,
+  "argv": [],
+  "cwd": null,
+  "overall_status": "not_run",
+  "verification_status": "unverified",
+  "exit_code": null,
+  "inputs": null,
+  "validity": "indeterminate",
+  "counts": null,
+  "reason": "仅示意未执行记录；实际 RUN 由 verify 生成，不复制为证据。",
+  "log_sha256": null
+}

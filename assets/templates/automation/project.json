@@ -1,0 +1,11 @@
+{
+  "authorities": {
+    "entrypoint": "README.md",
+    "agent_policy": "AGENTS.md",
+    "requirements": "docs/requirements.md",
+    "validation": "TESTING.md",
+    "status": "docs/status.md"
+  },
+  "confirmation_source": "",
+  "checks": {}
+}
