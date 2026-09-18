@@ -103,7 +103,7 @@ JSON 和文本复用同一次评估；默认仍输出 JSON，返回码与既有�
 
 ## 可移植机制自检
 
-接入或修改相关机制时，可运行 `python3 /实际位置/ai-project-harness/scripts/self_test.py`，也可将该命令映射为项目的 tests 检查。使用与 harness.py 一致的 Python 3.10+；脚本只依赖标准库及同包 harness.py/模板，复制整个 Skill 包后可直接运行。
+接入或修改相关机制时，可运行 `python3 /实际位置/ai-sdlc/scripts/self_test.py`，也可将该命令映射为项目的 tests 检查。使用与 harness.py 一致的 Python 3.10+；脚本只依赖标准库及同包 harness.py/模板，复制整个 Skill 包后可直接运行。
 
 自检在自动清理的临时项目内验证生命周期成功、中断恢复、缺验收/证据、最新失败、无关/相关/执行中输入变化、坏日志/回执、跳过/零测试/坏报告和超时。stdout 输出实际 unittest 计数，stderr 输出逐项结果；设置 AI_PROJECT_HARNESS_REPORT 时另写指定报告，其余情况下不在调用目录写文件。不通过、零测试或跳过返回非零。
 

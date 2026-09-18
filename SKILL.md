@@ -1,8 +1,8 @@
 ---
-name: ai-project-harness
+name: ai-sdlc
 description: Explicitly invoked project engineering mechanism for individual developers and one-person companies. Adopt a project, execute or resume an authorized task, and check evidence-backed delivery. Invoke only when the user explicitly requests this skill; ordinary discussion does not authorize adoption.
 metadata:
-  version: "0.3.0-dev"
+  version: "0.3.0-dev.1"
 ---
 
 # AI工程机制

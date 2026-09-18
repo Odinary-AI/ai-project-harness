@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable APH lifecycle smoke tests. Only temporary fixture projects are used.
+"""Portable AI SDLC lifecycle smoke tests. Only temporary fixture projects are used.
 
 Run with the same Python 3.10+ interpreter used for harness.py. Reports real
 unittest counts to stdout and, when set, AI_PROJECT_HARNESS_REPORT. This does not
