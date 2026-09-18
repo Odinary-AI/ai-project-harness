@@ -1,4 +1,4 @@
-# 脚本接口 0.2.0
+# 脚本接口
 
 Python 3.10+，macOS/Linux，标准库。以下 `H` 表示本 Skill 的 `scripts/harness.py` 实际路径；命令中用实际路径替换。本页只约束脚本模式；模式选择见 [lifecycle.md](lifecycle.md#模式与生效边界)。全局 `--root PROJECT` 放在子命令前。返回码：0 成功或预览，1 检查未满足，2 配置或操作错误。
 
@@ -15,6 +15,7 @@ Python 3.10+，macOS/Linux，标准库。以下 `H` 表示本 Skill 的 `scripts
 | `python3 H --root PROJECT resume TASK-001 --activate` | 核对现场后恢复为进行中 |
 | `python3 H --root PROJECT reconcile-run TASK-001 RUN-ID --outcome stopped --source docs/recovery.md` | 核对现场后追加历史在途 RUN 处置，不改原件或提供通过证据 |
 | `python3 H --root PROJECT close TASK-001` | 核对当前交付条件并保存检查结果，不自动标完成 |
+| `python3 H --root PROJECT close TASK-001 --format text` | 用中文展示同一验收、检查和证据判定；仍保存交付回执 |
 | `python3 H --root PROJECT close TASK-001 --complete --review-source docs/review.md` | 引用真实语义审阅，条件满足时完成，否则阻塞并列缺口 |
 
 ## 项目配置
@@ -44,7 +45,7 @@ Python 3.10+，macOS/Linux，标准库。以下 `H` 表示本 Skill 的 `scripts
 }
 ```
 
-配置在 `.harness/project.json`，实际文件包含 schema_version=1、mechanism_version。脚本不自动覆盖配置。doctor 诊断全部映射检查；任务命令只检查当前验收引用的检查配置和输入，共同规则及导航仍须就绪。目录输入包含目录内文件清单（忽略 __pycache__ 与 .DS_Store），新删文件也影响指纹；不要把自动变化的输出或整个项目目录当测试输入。选中的环境变量保存哈希，不保存原始值；日志内容由项目负责脱敏。
+配置在 `.harness/project.json`，实际文件包含 schema_version=1、mechanism_version。mechanism_version记录接入时的执行器版本；doctor输出的是当前实际运行的执行器版本，两者可能不同，不表示安装或迁移已经完成。包版本见[Skill元数据](../SKILL.md)，与配置/任务数据格式版本分开。脚本不自动覆盖配置。doctor 诊断全部映射检查；任务命令只检查当前验收引用的检查配置和输入，共同规则及导航仍须就绪。目录输入包含目录内文件清单（忽略 __pycache__ 与 .DS_Store），新删文件也影响指纹；不要把自动变化的输出或整个项目目录当测试输入。选中的环境变量保存哈希，不保存原始值；日志内容由项目负责脱敏。
 
 status不能与requirements、validation或agent_policy映射到同一实际文件（包含规范化路径、符号链接及现有文件的其他别名），接入预览及写入前均拒绝并指出冲突职责；状态写回会改变这些规则文件的整文件指纹。现有文件按实际身份判断，大小写敏感文件系统上的不同文件可分别映射；未建立的路径若仅大小写不同，先建立并核对实际文件再映射，预览不写探针文件来猜测。沿用分文件映射，不自动拆分已有文件。status仅与entrypoint共文件不受此限制。职责载体必须为非空文件；这些文件中的普通本地导航可以指向存在的文件或目录，缺失目标仍报错。
 
@@ -85,9 +86,28 @@ begin 后唯一状态在 Markdown 的 `harness-task` 块。新任务使用 v2，
 
 ## unittest 计数适配器
 
-标准 unittest 项目可复用本包 `scripts/unittest_report.py`。在项目检查的 argv 中配置 `["python3", "该适配器的实际路径", "--start", "tests", "--pattern", "test_*.py"]`，kind 为 tests。适配器从当前项目目录发现并真实运行测试，保存计数；零测试、失败和跳过均非通过。可在授权内将适配器复制到项目 scripts 并把它加入 inputs，便于脱离 Skill 安装目录继续运行。
+标准 unittest 项目可复用本包 `scripts/unittest_report.py`。在项目检查的 argv 中配置 `["python3", "该适配器的实际路径", "--start", "tests", "--pattern", "test_*.py"]`，kind 为 tests。适配器从当前项目目录发现并真实运行测试，保存计数；沿用框架的成功判定，预期失败用例的意外成功（unexpected success）计入 failed，零测试和跳过也非通过。可在授权内将适配器复制到项目 scripts 并把它加入 inputs，便于脱离 Skill 安装目录继续运行。
 
 doctor 的 ready 仅表示文件、配置和 README 导航检查就绪；接入任务完成还需真实规则审阅、适用检查及交付证据。
+
+## 诊断与验收视图
+
+`resume` 的 assessment 和 `close` 结果保留原有 conditions_met、gaps、runs 等字段，额外提供以下派生信息；不新增任务必填字段：
+
+- `check_results`：按检查 ID 索引，含 run_id、execution_status、evidence_status、conditions_met、log 与 diagnostics。执行成功与证据仍有效分开；未执行、失败、在途、输入失效和损坏分别说明。log 是项目内日志路径，失败细节结合该 RUN 的 summary.json 与原始日志读取。
+- `diagnostics` 中每项含 code、message、action，输入变化时另含 changes（kind、name、change）。按文件/目录、环境、检查定义、任务标准、授权来源和执行器定位；只显示环境变量名和变化，不输出变量值或其散列。旧 RUN 仅存检查定义整体摘要，因此该类差异只能定位到检查定义，不能追溯具体配置字段。执行结束时已检测到前后指纹不同并记为失效的 RUN，即使输入之后恢复，仍说明该 RUN 失效。执行期间改变但结束前恢复的输入无法由两次快照识别，执行器不提供持续变化监测。
+- `acceptance_results`：按验收项展示 id、text、checks、human_status 与 conditions_met。人工状态 recorded 仅表示来源及标准指纹已记录，不证明确认真实；共同缺口存在时各项机械条件仍未满足。映射齐全不能证明测试语义充分。
+- `global_gaps`：共同前置、历史无效/在途回执及审阅材料等缺口。存在无效回执时 runs 可能仍列可读取的旧 RUN，但不能据此当作最新通过，整体与验收项仍受共同缺口阻塞。
+
+JSON 和文本复用同一次评估；默认仍输出 JSON，返回码与既有判定不变。`resume --format text` 只读，`close --format text` 沿用 close 的回执及显式 --complete 副作用。建议动作不是授权，不自动重放检查或改变范围；输入已变化时核对变化，只复验受影响范围。
+
+## 可移植机制自检
+
+接入或修改相关机制时，可运行 `python3 /实际位置/ai-project-harness/scripts/self_test.py`，也可将该命令映射为项目的 tests 检查。使用与 harness.py 一致的 Python 3.10+；脚本只依赖标准库及同包 harness.py/模板，复制整个 Skill 包后可直接运行。
+
+自检在自动清理的临时项目内验证生命周期成功、中断恢复、缺验收/证据、最新失败、无关/相关/执行中输入变化、坏日志/回执、跳过/零测试/坏报告和超时。stdout 输出实际 unittest 计数，stderr 输出逐项结果；设置 AI_PROJECT_HARNESS_REPORT 时另写指定报告，其余情况下不在调用目录写文件。不通过、零测试或跳过返回非零。
+
+这是一组可复用的机制检查，不是完整开发回归或项目适配证明。优先复用已有等效检查；按风险补查项目命令、输入映射和报告转换，产品测试及真实平台事件仍按项目要求执行。不要求每次业务修改都运行自检。
 
 ## v2任务处置与更新
 

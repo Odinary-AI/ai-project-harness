@@ -2,7 +2,7 @@
 
 本专项检查目标用户能否在实际界面顺利完成任务。用于本次界面/交互变化、体验故障或阶段范围内的用户界面；局部任务只查相关流程，不因项目有界面就全站扫描。无用户界面时不适用。执行、方法选择、覆盖及处置遵循 [maintenance.md](maintenance.md)。
 
-先复用项目UX规范或等效来源；[ux-guidelines.md](../assets/templates/optional/docs/ux-guidelines.md)承载项目标准，不重复本清单。用户任务与交付对应复用 [delivery-conformance.md](delivery-conformance.md)，运行证据复用 [validation-health.md](validation-health.md)，状态契约问题关联 [design-conformance.md](design-conformance.md)。
+新增或修改交互前匹配现有模式；必要的新模式在唯一规范中说明适用条件及允许差异，检查代表使用处，避免局部变体无意扩散。先复用项目UX规范或等效来源；[ux-guidelines.md](../assets/templates/optional/docs/ux-guidelines.md)承载项目标准，不重复本清单。用户任务与交付对应复用 [delivery-conformance.md](delivery-conformance.md)，运行证据复用 [validation-health.md](validation-health.md)，状态契约问题关联 [design-conformance.md](design-conformance.md)。
 
 ## 最低检查维度与必要顺序
 

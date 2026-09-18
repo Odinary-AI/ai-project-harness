@@ -16,7 +16,7 @@ import time
 import uuid
 import fcntl
 
-VERSION = '0.2.0'
+VERSION = '0.3.0-dev'
 PACKAGE = Path(__file__).resolve().parents[1]
 DEFAULTS = {'entrypoint': 'README.md', 'agent_policy': 'AGENTS.md',
             'requirements': 'docs/requirements.md', 'validation': 'TESTING.md',
@@ -600,6 +600,85 @@ def verify(root, c, tid, cid):
         seal(root, run, rec)
     return {'run': run, **rec}
 
+def fingerprint_changes(before, after):
+    """Explain identity changes without returning values (including env hashes)."""
+    if not isinstance(before, dict):
+        return [{'kind': 'fingerprint', 'name': 'inputs', 'change': 'unavailable'}]
+    changes = []
+    for group in ('files', 'environment'):
+        old, new = before.get(group, {}), after.get(group, {})
+        if not isinstance(old, dict):
+            changes.append({'kind': 'fingerprint', 'name': group, 'change': 'unavailable'})
+            continue
+        for name in sorted(old.keys() | new.keys()):
+            if name not in old or name not in new or old[name] != new[name]:
+                kind = 'directory' if group == 'files' and name.endswith('/') else ('file' if group == 'files' else 'environment')
+                changes.append({'kind': kind, 'name': name,
+                                'change': 'added' if name not in old else 'removed' if name not in new else 'modified'})
+    for name in ('check', 'contract', 'confirmation', 'runner'):
+        if before.get(name) != after.get(name):
+            changes.append({'kind': name, 'name': name, 'change': 'modified'})
+    return changes
+
+
+def assess_check(root, c, t, cid, directory, rec):
+    """One check evaluation supplies both the legacy gate and its explanation."""
+    result = {'run_id': rec['run_id'] if rec else None,
+              'execution_status': rec.get('overall_status', 'unknown') if rec else 'not_run',
+              'evidence_status': 'missing' if rec is None else 'unverified',
+              'conditions_met': False, 'log': None, 'diagnostics': []}
+    def explain(code, message, action, changes=None):
+        item = {'code': code, 'message': message, 'action': action}
+        if changes: item['changes'] = changes
+        result['diagnostics'].append(item)
+    if rec is None:
+        gap = '缺少执行证据'
+        explain('missing_run', gap, f'核对执行前置后运行 verify {t["id"]} {cid}。')
+        return result, gap
+    result['log'] = str((directory/'output.log').relative_to(root))
+    current, input_error = None, None
+    try:
+        current = fingerprints(root, c, t, cid)
+    except (HarnessError, OSError) as exc:
+        input_error = str(exc)
+    changes = fingerprint_changes(rec.get('inputs'), current) if current is not None else []
+    if changes or rec.get('validity') == 'invalidated':
+        result['evidence_status'] = 'stale'
+        explain('inputs_changed', '相关输入变化，证据已失效' if changes else '执行期间输入曾变化，该次证据仍失效',
+                f'核对列出的变化及当前验证对象；仍需此检查时重新运行 verify {t["id"]} {cid}。', changes)
+    elif input_error or rec.get('validity') != 'valid':
+        result['evidence_status'] = 'unknown'
+        explain('inputs_unavailable', input_error or '执行时输入有效性未确定', '补齐或核对相关输入及环境后重新评估；不使用旧通过代替。')
+    # Keep the original gate order and messages for existing consumers.
+    stage = 'execution'
+    try:
+        require(rec.get('overall_status') == 'passed' and rec.get('verification_status') == 'verified' and rec.get('exit_code') == 0, '最近执行未通过或未结束')
+        stage = 'inputs'
+        if input_error: raise HarnessError(input_error)
+        require(rec.get('validity') == 'valid' and rec.get('inputs') == current, '相关输入变化，证据已失效')
+        stage = 'log'
+        require(digest((directory/'output.log').read_bytes()) == rec.get('log_sha256'), '日志损坏或缺失')
+        if c['checks'][cid]['kind'] == 'tests':
+            stage = 'counts'
+            counts = rec.get('counts') or {}
+            require(counts.get('total', 0) > 0 and all(counts.get(k) == 0 for k in ('failed', 'errors', 'skipped')), '必需测试计数未通过')
+            stage = 'report'
+            require(digest((directory/'test-report.json').read_bytes()) == rec.get('report_sha256'), '测试计数报告损坏')
+    except (HarnessError, OSError) as exc:
+        gap = str(exc)
+        if stage in ('log', 'report', 'counts'):
+            result['evidence_status'] = 'invalid'
+            explain('invalid_' + stage, gap, '核对该 RUN 原始日志与报告，保留损坏记录；重新取得有效证据。')
+        elif stage == 'execution' and (rec.get('overall_status') != 'passed' or not result['diagnostics']):
+            running = rec.get('overall_status') == 'running'
+            explain('execution_unfinished' if running else 'execution_failed', gap,
+                    '先核对现场与副作用；仅在确认结局后按 reconcile-run 追加处置，不盲目重放。' if running else
+                    f'查看日志及 RUN 摘要，修复失败或补齐环境后运行 verify {t["id"]} {cid}；不回退旧成功。')
+        return result, gap
+    result.update(conditions_met=True, evidence_status='valid')
+    return result, None
+
+
 def assess(root, c, t):
     validate_task(t, c)
     gaps = list(doctor(root, c, task_check_ids(t))['gaps'])
@@ -637,32 +716,35 @@ def assess(root, c, t):
             records.append((directory, rec))
         except (HarnessError, OSError) as exc:
             gaps.append(f'无效执行回执 {directory.name}: {exc}')
+    global_gaps = list(gaps)
+    check_results, acceptance_results = {}, []
     for ac in t['acceptance']:
         for cid in ac['checks']:
             if cid in selected:
                 continue
             matches = [(p, r) for p, r in records if r.get('check_id') == cid]
             if not matches:
-                gaps.append(f'{cid}: 缺少执行证据')
                 selected[cid] = None
-                continue
-            directory, rec = matches[0]
-            selected[cid] = rec['run_id']
-            try:
-                require(rec.get('overall_status') == 'passed' and rec.get('verification_status') == 'verified' and rec.get('exit_code') == 0, '最近执行未通过或未结束')
-                require(rec.get('validity') == 'valid' and rec.get('inputs') == fingerprints(root, c, t, cid), '相关输入变化，证据已失效')
-                require(digest((directory/'output.log').read_bytes()) == rec.get('log_sha256'), '日志损坏或缺失')
-                if c['checks'][cid]['kind'] == 'tests':
-                    counts = rec.get('counts') or {}
-                    require(counts.get('total', 0) > 0 and all(counts.get(k) == 0 for k in ('failed', 'errors', 'skipped')), '必需测试计数未通过')
-                    require(digest((directory/'test-report.json').read_bytes()) == rec.get('report_sha256'), '测试计数报告损坏')
-            except (HarnessError, OSError) as exc:
-                gaps.append(f'{cid}: {exc}')
+                detail, gap = assess_check(root, c, t, cid, None, None)
+            else:
+                directory, rec = matches[0]
+                selected[cid] = rec['run_id']
+                detail, gap = assess_check(root, c, t, cid, directory, rec)
+            check_results[cid] = detail
+            if gap: gaps.append(f'{cid}: {gap}')
+        human_status = 'not_required'
         if ac.get('human_required'):
             h = t.get('human_acceptance', {}).get(ac['id'], {})
             if h.get('status') != 'accepted' or not h.get('source') or h.get('contract') != digest(contract(t)):
+                human_status = 'pending'
                 gaps.append(f'{ac["id"]}: 必需人工验收未确认、无来源或范围已改变')
+            else:
+                human_status = 'recorded'
+        met = not global_gaps and human_status != 'pending' and all(check_results[cid]['conditions_met'] for cid in ac['checks'])
+        acceptance_results.append({'id': ac['id'], 'text': ac['text'], 'checks': ac['checks'],
+                                   'human_status': human_status, 'conditions_met': met})
     return {'task_id': t['id'], 'time': now(), 'conditions_met': not gaps, 'gaps': gaps, 'runs': selected,
+            'global_gaps': global_gaps, 'check_results': check_results, 'acceptance_results': acceptance_results,
             'record_fingerprint': digest({'task': {k:v for k,v in t.items() if k not in ('state','updated_at','next_action','next_reason')}, 'materials': materials, 'reconciliations': reconciliations}),
             'coverage': 'v2' if t['schema_version'] == 2 else 'legacy',
             'contract': digest(contract(t)), 'boundary': '机械条件检查；不证明人工来源真实性、需求语义正确或平台强制阻断。'}
@@ -715,21 +797,51 @@ def resume(root, c, tid, activate=False):
         return {'task': t, 'assessment': assessment, 'summary': human_summary(t, assessment), 'task_record': str(task_path(root, tid)),
                 'note': '核对现场和在途操作后再运行；resume 不执行测试、不重发副作用。'}
 
+def readable_assessment(assessment):
+    execution = {'not_run': '未执行', 'passed': '通过', 'failed': '失败', 'error': '异常',
+                 'skipped': '跳过/零测试', 'running': '进行中或结局未知', 'interrupted': '已中断'}
+    evidence = {'missing': '缺失', 'valid': '有效', 'stale': '已失效', 'invalid': '损坏或不合格',
+                'unknown': '无法判定', 'unverified': '未验证'}
+    humans = {'not_required': '不要求', 'pending': '待确认或需重新确认', 'recorded': '已记录确认（未核实来源真实性）'}
+    kinds = {'file': '文件', 'directory': '目录清单', 'environment': '环境', 'check': '检查定义',
+             'contract': '任务标准', 'confirmation': '授权来源', 'runner': '执行器', 'fingerprint': '输入指纹'}
+    changes = {'added': '新增', 'removed': '移除', 'modified': '变化', 'unavailable': '无法比较'}
+    lines = ['交付机械条件：' + ('已满足' if assessment['conditions_met'] else '有缺口')]
+    lines.extend('共同缺口：' + gap for gap in assessment['global_gaps'])
+    for ac in assessment['acceptance_results']:
+        lines.append(f'验收 {ac["id"]}：{ac["text"]}；检查：{", ".join(ac["checks"]) or "仅人工"}；'
+                     f'机械条件：{"满足" if ac["conditions_met"] else "有缺口"}；人工：{humans[ac["human_status"]]}')
+    for cid, item in assessment['check_results'].items():
+        lines.append(f'检查 {cid}：执行{execution.get(item["execution_status"], "未知")}；'
+                     f'证据{evidence[item["evidence_status"]]}；RUN：{item["run_id"] or "无"}')
+        if item['log']: lines.append('  日志：' + item['log'])
+        for d in item['diagnostics']:
+            lines.append('  原因：' + d['message'])
+            for change in d.get('changes', []):
+                lines.append(f'    {kinds[change["kind"]]} {change["name"]}：{changes[change["change"]]}')
+            lines.append('  处置：' + d['action'])
+    lines.append(assessment['boundary'])
+    return lines
+
+
+def readable_close(result):
+    return '\n'.join([f'任务：{result["task_id"]}', f'任务执行状态：{result["task_state"]}',
+                      *readable_assessment(result), f'交付回执：{result["receipt"]}'])
+
+
 def readable_resume(result):
     t, assessment = result['task'], result['assessment']
     labels = {'not_started':'未开始','in_progress':'进行中','blocked':'阻塞',
               'interrupted':'已中断','completed':'已完成','cancelled':'已取消'}
     lines = [f'任务：{t["id"]}', f'目标：{t["goal"]}', f'范围：{t["scope"]}',
              f'任务执行状态：{labels.get(t["state"], t["state"])}',
-             f'下一动作：{t["next_action"]}', f'任务记录：{result["task_record"]}',
-             '交付机械条件：' + ('已满足' if assessment['conditions_met'] else '有缺口')]
+             f'下一动作：{t["next_action"]}', f'任务记录：{result["task_record"]}']
     if t['schema_version'] == 2:
         lines += [f'用户结果：{t["purpose"].get("user_outcome", t["goal"]) or "未填写"}',
                   f'更新于：{t.get("updated_at")}']
         if t.get('next_reason'): lines.append(f'下一步原因：{t["next_reason"]}')
         lines += [f'待人判断：{x.get("question") or "未填写"}；建议：{x.get("recommendation") or "未填写"}；材料：{x.get("materials") or "未填写"}' for x in t['human_items']]
-    lines.extend(f'检查 {cid}：{run or "未执行"}' for cid, run in assessment['runs'].items())
-    lines.extend('待处理：' + gap for gap in assessment['gaps'])
+    lines.extend(readable_assessment(assessment))
     lines.append(result['note'])
     return '\n'.join(lines)
 
@@ -743,6 +855,7 @@ def main(argv=None):
     p = sub.add_parser('begin', help='从 JSON 规格建立唯一任务记录'); p.add_argument('--spec', required=True)
     p = sub.add_parser('verify', help='实际执行项目配置的检查并保存独立 RUN'); p.add_argument('task'); p.add_argument('check')
     p = sub.add_parser('close', help='重新核对交付条件；可据实标记完成'); p.add_argument('task'); p.add_argument('--complete', action='store_true'); p.add_argument('--review-source')
+    p.add_argument('--format', choices=['json','text'], default='json', help='文本验收视图或完整 JSON；不改变判定与命令副作用')
     p = sub.add_parser('pause', help='保存中断状态及下一动作'); p.add_argument('task'); p.add_argument('--next', required=True)
     p = sub.add_parser('resume', help='读取任务、证据与下一动作'); p.add_argument('task'); p.add_argument('--activate', action='store_true')
     p.add_argument('--format', choices=['json','text'], default='json', help='文本摘要或完整 JSON；不改变执行状态')
@@ -779,6 +892,8 @@ def main(argv=None):
                     result = t
         if a.command == 'resume' and a.format == 'text':
             print(readable_resume(result))
+        elif a.command == 'close' and a.format == 'text':
+            print(readable_close(result))
         else:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         if a.command == 'verify': return 0 if result['verification_status'] == 'verified' else 1
