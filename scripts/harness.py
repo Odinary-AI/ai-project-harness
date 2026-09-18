@@ -16,7 +16,7 @@ import time
 import uuid
 import fcntl
 
-VERSION = '0.3.0-dev.2'
+VERSION = '0.4.0-dev.1'
 PACKAGE = Path(__file__).resolve().parents[1]
 DEFAULTS = {'entrypoint': 'README.md', 'agent_policy': 'AGENTS.md',
             'requirements': 'docs/requirements.md', 'validation': 'TESTING.md',
@@ -235,6 +235,7 @@ def read_task(root, tid):
         t = json.loads(blocks[0])
     except ValueError as exc:
         raise HarnessError('任务数据块损坏') from exc
+    require(isinstance(t, dict), '任务数据块必须是 JSON 对象')
     require(t.get('schema_version') in (1, 2) and t.get('id') == tid, '任务版本或 ID 不一致')
     return t, body
 
@@ -330,6 +331,7 @@ def migrate_task(root, c, tid, apply=False):
         return result
 
 def update_task(root, c, tid, candidate):
+    require(isinstance(candidate, dict), '任务更新快照必须是 JSON 对象')
     with lock(root):
         t, body = read_task(root, tid)
         require(t['schema_version'] == 2, '旧任务先 migrate-task')

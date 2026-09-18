@@ -1,8 +1,8 @@
 ---
 name: ai-sdlc
-description: Explicitly invoked project engineering mechanism for individual developers and one-person companies. Adopt a project, execute or resume an authorized task, and check evidence-backed delivery. Invoke only when the user explicitly requests this skill; ordinary discussion does not authorize adoption.
+description: Explicitly invoked project engineering mechanism for individual developers and one-person companies. Adopt a project, execute or resume an authorized task, plan and carry out integrated project governance, and check evidence-backed delivery. Invoke only when the user explicitly requests this skill; ordinary discussion does not authorize adoption.
 metadata:
-  version: "0.3.0-dev.2"
+  version: "0.4.0-dev.1"
 ---
 
 # AI工程机制
@@ -16,8 +16,9 @@ metadata:
 - **接入项目**：读取 [接入说明](references/adoption.md)及[默认目录规则](references/project-layout.md)，检查现有规则和文件，建立缺失的必要内容及项目映射。
 - **执行或恢复任务**：读取 [任务流程](references/lifecycle.md)，沿用项目的文档或脚本模式，采用任务记录、比例验证、实际结果与中断交接；在关键实现前核对反馈是否够用，反馈不足、原因不明或反复修复时按其中的[反馈与诊断](references/lifecycle.md#反馈与诊断)推进。
 - **检查交付或维护机制**：读取 [验证与能力边界](references/verification.md)，核对相关证据、语义审阅与待人事项。
+- **项目综合治理**：用户要求“治理项目”等整合工作时，读取 [综合治理入口](references/maintenance.md#项目综合治理入口)，先基于现状形成统一方案，再沿授权完成检查、修复、治理体系回顾与按需更新、复验和交付。
 - **阶段回顾与治理更新**：用户要求“治理体系更新”“治理规则更新”“阶段复盘”或“经验沉淀”时，读取 [回顾与更新入口](references/maintenance.md#阶段回顾与治理更新入口)，按范围回顾过程、提炼经验并依授权维护项目文件。
-- **阶段或专项健康检查**：先读 [维护与检查底线](references/maintenance.md)，按范围选择五类基础专项及适用的实验、UX、安全条件专项；适用必需项不可静默省略，模型自行选择方法并在底线上增加检查。
+- **阶段或专项健康检查**：先读 [维护与检查底线](references/maintenance.md)，按范围选择五类基础专项及适用的实验、UX、安全条件专项；适用必需项不可静默省略，模型自行选择方法并在底线上增加检查。治理体系内部及其与项目实际的核对按[治理扫描范围](references/maintenance.md#治理体系与项目实际)纳入现有条目。
 - 写配置或调用命令时读取 [脚本接口](references/cli.md)。命名、状态或主体容易混淆时读取 [术语表](references/terminology.md)。选择附加文件时读取 [模板索引](references/templates.md)。不要默认加载全部材料。
 
 ## 始终保留的边界
