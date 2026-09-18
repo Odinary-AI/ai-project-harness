@@ -1,5 +1,7 @@
 # 模板索引
 
+目录采用、文件归属及小项目合并规则见[项目目录](project-layout.md)，不要求为每种模板单建目录。
+
 共17个模板文件：15个Markdown文档、2个JSON。模板按职责选择，复制后填真实内容。五项基本职责缺载体时参考 core；optional 按实际风险启用；records 提供任务、决定和实验的记录结构；文档模式直接填写，脚本模式以唯一数据块维护任务状态，其余内容按需使用。automation/project.json 是可填写的接入映射，空检查和确认来源会在 doctor 报告未就绪；evidence-summary.json 只说明未执行状态，不作为真实证据。实际格式见 [脚本接口](cli.md)。
 
 - [automation/evidence-summary.json](../assets/templates/automation/evidence-summary.json)

@@ -2,7 +2,7 @@
 name: ai-sdlc
 description: Explicitly invoked project engineering mechanism for individual developers and one-person companies. Adopt a project, execute or resume an authorized task, and check evidence-backed delivery. Invoke only when the user explicitly requests this skill; ordinary discussion does not authorize adoption.
 metadata:
-  version: "0.3.0-dev.1"
+  version: "0.3.0-dev.2"
 ---
 
 # AI工程机制
@@ -13,7 +13,7 @@ metadata:
 
 ## 选择当前工作
 
-- **接入项目**：读取 [接入说明](references/adoption.md)，检查现有规则和文件，建立缺失的必要内容及项目映射。
+- **接入项目**：读取 [接入说明](references/adoption.md)及[默认目录规则](references/project-layout.md)，检查现有规则和文件，建立缺失的必要内容及项目映射。
 - **执行或恢复任务**：读取 [任务流程](references/lifecycle.md)，沿用项目的文档或脚本模式，采用任务记录、比例验证、实际结果与中断交接；在关键实现前核对反馈是否够用，反馈不足、原因不明或反复修复时按其中的[反馈与诊断](references/lifecycle.md#反馈与诊断)推进。
 - **检查交付或维护机制**：读取 [验证与能力边界](references/verification.md)，核对相关证据、语义审阅与待人事项。
 - **阶段回顾与治理更新**：用户要求“治理体系更新”“治理规则更新”“阶段复盘”或“经验沉淀”时，读取 [回顾与更新入口](references/maintenance.md#阶段回顾与治理更新入口)，按范围回顾过程、提炼经验并依授权维护项目文件。
