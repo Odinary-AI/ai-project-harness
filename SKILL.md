@@ -1,8 +1,8 @@
 ---
 name: ai-sdlc
-description: Explicitly invoked project engineering mechanism for individual developers and one-person companies. Adopt a project, execute or resume an authorized task, plan and carry out integrated project governance, and check evidence-backed delivery. Invoke only when the user explicitly requests this skill; ordinary discussion does not authorize adoption.
+description: Explicitly invoked project engineering mechanism for individual developers and one-person companies. Adopt a project, execute or resume an authorized task, inspect and clean project files, carry out integrated project governance, and check evidence-backed delivery. Invoke only when the user explicitly requests this skill; ordinary discussion does not authorize adoption.
 metadata:
-  version: "0.4.0-dev.1"
+  version: "0.5.0-dev.1"
 ---
 
 # AI工程机制
@@ -14,6 +14,7 @@ metadata:
 ## 选择当前工作
 
 - **接入项目**：读取 [接入说明](references/adoption.md)及[默认目录规则](references/project-layout.md)，检查现有规则和文件，建立缺失的必要内容及项目映射。
+- **目录检查与清理**：用户要求检查目录、多余文件或清理项目时，读取[目录检查与清理入口](references/project-layout.md#目录检查与清理入口)，主动调查候选、判断可删/保留/待核实，按授权处理并验证交接；只读请求不执行删除，不默认升级为完整治理。
 - **执行或恢复任务**：读取 [任务流程](references/lifecycle.md)，沿用项目的文档或脚本模式，采用任务记录、比例验证、实际结果与中断交接；在关键实现前核对反馈是否够用，反馈不足、原因不明或反复修复时按其中的[反馈与诊断](references/lifecycle.md#反馈与诊断)推进。
 - **检查交付或维护机制**：读取 [验证与能力边界](references/verification.md)，核对相关证据、语义审阅与待人事项。
 - **项目综合治理**：用户要求“治理项目”等整合工作时，读取 [综合治理入口](references/maintenance.md#项目综合治理入口)，先基于现状形成统一方案，再沿授权完成检查、修复、治理体系回顾与按需更新、复验和交付。
