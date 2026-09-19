@@ -16,7 +16,7 @@ import time
 import uuid
 import fcntl
 
-VERSION = '0.5.0-dev.2'
+VERSION = '0.5.1-dev.1'
 PACKAGE = Path(__file__).resolve().parents[1]
 DEFAULTS = {'entrypoint': 'README.md', 'agent_policy': 'AGENTS.md',
             'requirements': 'docs/requirements.md', 'validation': 'TESTING.md',
